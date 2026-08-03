@@ -40,14 +40,14 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
   bot.command("newbot", async (ctx) => {
     const from = ctx.from;
     if (!from) return;
-    const owned = await db.listByOwner(env.DB, from.id);
+    const owned = await db.listByOwner(env.REGISTRY, from.id);
     const max = env.MAX_BOTS_PER_USER ?? 5;
     if (owned.length >= max) {
       await ctx.reply(`حداکثر ${max} ربات می‌تونی بسازی.`);
       return;
     }
-    await db.clearPending(env.DB, from.id);
-    await db.savePending(env.DB, from.id, { step: "request" });
+    await db.clearPending(env.REGISTRY, from.id);
+    await db.savePending(env.REGISTRY, from.id, { step: "request" });
     await ctx.reply(
       "چه رباتی می‌خوای؟ 🔍\n" +
         "درخواستت رو یه جمله بنویس، مثلاً:\n" +
@@ -74,7 +74,7 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
       await ctx.reply("مثال: /delbot 3");
       return;
     }
-    const tenant = await db.getTenantById(env.DB, Number(parts[1]));
+    const tenant = await db.getTenantById(env.REGISTRY, Number(parts[1]));
     if (!tenant || tenant.owner_id !== from.id) {
       await ctx.reply("چنین رباتی نداری.");
       return;
@@ -84,14 +84,14 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
     } catch {
       // ignore
     }
-    await db.deleteTenant(env.DB, tenant.id);
+    await db.deleteTenant(env.REGISTRY, tenant.id);
     await ctx.reply(`ربات @${tenant.username ?? "?"} حذف شد.`);
   });
 
   bot.command("cancel", async (ctx) => {
     const from = ctx.from;
     if (!from) return;
-    await db.clearPending(env.DB, from.id);
+    await db.clearPending(env.REGISTRY, from.id);
     await ctx.reply("انجام شد / لغو شد.");
   });
 
@@ -101,16 +101,16 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
     const action = ctx.match[1];
     await ctx.answerCallbackQuery();
     if (action === "newbot") {
-      await db.clearPending(env.DB, from.id);
-      await db.savePending(env.DB, from.id, { step: "request" });
+      await db.clearPending(env.REGISTRY, from.id);
+      await db.savePending(env.REGISTRY, from.id, { step: "request" });
       await ctx.reply("چه رباتی می‌خوای؟ 🔍\nدرخواستت رو یه جمله بنویس.");
     } else if (action === "mybots") {
       await mybotsReply(ctx, env, from.id);
     } else if (action === "confirm") {
-      await db.savePending(env.DB, from.id, { step: "token" });
+      await db.savePending(env.REGISTRY, from.id, { step: "token" });
       await ctx.reply("توکن رباتت رو بفرست:\nاز @BotFather → /newbot → اسم ربات → توکن رو اینجا کپی کن.");
     } else if (action === "change") {
-      await db.savePending(env.DB, from.id, { step: "request", template: null });
+      await db.savePending(env.REGISTRY, from.id, { step: "request", template: null });
       await ctx.reply("اوکی، دوباره بگو چه رباتی می‌خوای:");
     }
   });
@@ -119,7 +119,7 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
     const from = ctx.from;
     if (!from || !ctx.message.text) return;
     if (ctx.message.text.startsWith("/")) return; // handled by command handlers
-    const pend = await db.getPending(env.DB, from.id);
+    const pend = await db.getPending(env.REGISTRY, from.id);
     if (!pend) return;
     await handlePendingText(ctx, env, baseUrl, pend, from.id);
   });
@@ -138,7 +138,7 @@ function mainPanel() {
 }
 
 async function mybotsReply(ctx: Context, env: Env, userId: number): Promise<void> {
-  const owned = await db.listByOwner(env.DB, userId);
+  const owned = await db.listByOwner(env.REGISTRY, userId);
   if (!owned.length) {
     await ctx.reply("هنوز رباتی نساختی. /newbot");
     return;
@@ -167,7 +167,7 @@ async function handlePendingText(
       await ctx.reply("نتونستم بفهمم چه رباتی می‌خوای 🤔\nیه توضیح ساده‌تر بده یا /list بزن و اسم یه ربات رو بنویس.");
       return;
     }
-    await db.savePending(env.DB, userId, { step: "confirm", template: template.id });
+    await db.savePending(env.REGISTRY, userId, { step: "confirm", template: template.id });
     await ctx.reply(
       `فهمیدم! ✅ ربات «${template.name}»\n${template.desc}\n\n📌 ${template.setupHint}\n\nدرست بود؟`,
       {
@@ -201,13 +201,13 @@ async function handlePendingText(
       await ctx.reply(`توکن رد شد: ${String(e)}\nدوباره بفرست یا /cancel بزن.`);
       return;
     }
-    if (await db.getTenantByToken(env.DB, token)) {
+    if (await db.getTenantByToken(env.REGISTRY, token)) {
       await ctx.reply("این توکن قبلاً توی سیستم ثبت شده.");
-      await db.clearPending(env.DB, userId);
+      await db.clearPending(env.REGISTRY, userId);
       return;
     }
     const tpl = templateById(pend.template ?? "");
-    await db.savePending(env.DB, userId, {
+    await db.savePending(env.REGISTRY, userId, {
       step: tpl?.needsOwnerId ? "owner" : "done",
       token,
       username,
@@ -218,7 +218,7 @@ async function handlePendingText(
         `توکن درسته ✅ (@${username})\n\nیوزرآیدی ادمین این ربات رو بفرست (عدد).\nمعمولاً خودتی — یوزرآیدی خودت رو از @userinfobot بپرس.`
       );
     } else {
-      const fresh = await db.getPending(env.DB, userId);
+      const fresh = await db.getPending(env.REGISTRY, userId);
       if (fresh) await buildBot(ctx, env, baseUrl, fresh);
     }
     return;
@@ -235,8 +235,8 @@ async function handlePendingText(
       await ctx.reply("یه عدد معتبر بفرست، مثل: 5849459134");
       return;
     }
-    await db.savePending(env.DB, userId, { step: "done", owner: ownerId });
-    const fresh = await db.getPending(env.DB, userId);
+    await db.savePending(env.REGISTRY, userId, { step: "done", owner: ownerId });
+    const fresh = await db.getPending(env.REGISTRY, userId);
     if (fresh) await buildBot(ctx, env, baseUrl, fresh);
   }
 }
@@ -247,14 +247,14 @@ async function buildBot(ctx: Context, env: Env, baseUrl: string, pend: PendingRo
   const tpl = templateById(pend.template ?? "");
   if (!tpl || !pend.token) {
     await ctx.reply("خطای داخلی: قالب پیدا نشد. /newbot");
-    await db.clearPending(env.DB, from.id);
+    await db.clearPending(env.REGISTRY, from.id);
     return;
   }
   const cfg = baseConfigFor(tpl);
   const hookSecret = crypto.randomUUID();
   const ownerId = pend.owner ?? from.id;
 
-  await db.addTenant(env.DB, {
+  await db.addTenant(env.REGISTRY, {
     owner_id: ownerId,
     token: pend.token,
     username: pend.username ?? "",
@@ -277,7 +277,7 @@ async function buildBot(ctx: Context, env: Env, baseUrl: string, pend: PendingRo
     console.error("setWebhook failed:", String(e));
   }
 
-  await db.clearPending(env.DB, from.id);
+  await db.clearPending(env.REGISTRY, from.id);
 
   if (webhookOk) {
     await ctx.reply(

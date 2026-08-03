@@ -1,4 +1,5 @@
-/** D1 registry: tenants + pending factory conversations + users (for broadcast). */
+/** KV registry: tenants + pending factory conversations + users (for broadcast).
+ *  Replaces the D1 tables — KV needs no schema, no migrations. */
 
 export interface TenantRow {
   id: number;
@@ -22,102 +23,115 @@ export interface PendingRow {
   owner: number | null;
 }
 
-export async function initDb(db: D1Database): Promise<void> {
-  await db.exec(
-    `CREATE TABLE IF NOT EXISTS tenants (
-       id INTEGER PRIMARY KEY AUTOINCREMENT,
-       owner_id INTEGER NOT NULL,
-       token TEXT NOT NULL UNIQUE,
-       username TEXT,
-       name TEXT,
-       template TEXT NOT NULL,
-       config TEXT NOT NULL DEFAULT '{}',
-       active INTEGER NOT NULL DEFAULT 1,
-       hook_secret TEXT NOT NULL DEFAULT ''
-     )`
-  );
-  await db.exec(
-    `CREATE TABLE IF NOT EXISTS users (
-       id INTEGER PRIMARY KEY AUTOINCREMENT,
-       tenant_id INTEGER NOT NULL,
-       user_id INTEGER NOT NULL,
-       UNIQUE(tenant_id, user_id)
-     )`
-  );
-  await db.exec(
-    `CREATE TABLE IF NOT EXISTS pending (
-       user_id INTEGER PRIMARY KEY,
-       step TEXT NOT NULL DEFAULT 'request',
-       template TEXT,
-       token TEXT,
-       username TEXT,
-       name TEXT,
-       owner INTEGER
-     )`
-  );
+// ---------- helpers ----------
+
+function randomId(): number {
+  return Math.floor(Math.random() * 0x7fffffff);
+}
+
+async function listKeys(kv: KVNamespace, prefix: string): Promise<string[]> {
+  const keys: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await kv.list({ prefix, limit: 1000, cursor });
+    keys.push(...page.keys.map((k) => k.name));
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return keys;
+}
+
+function parseRow<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
 }
 
 // ---------- tenants ----------
 
 export async function addTenant(
-  db: D1Database,
+  kv: KVNamespace,
   t: { owner_id: number; token: string; username: string; name: string; template: string; config: string; hook_secret: string }
 ): Promise<number> {
-  const res = await db
-    .prepare(
-      `INSERT INTO tenants (owner_id, token, username, name, template, config, hook_secret)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(t.owner_id, t.token, t.username, t.name, t.template, t.config, t.hook_secret)
-    .run();
-  return res.meta.last_row_id;
+  let id = randomId();
+  while (await kv.get(`tid:${id}`)) id = randomId();
+  const row: TenantRow = {
+    id,
+    owner_id: t.owner_id,
+    token: t.token,
+    username: t.username,
+    name: t.name,
+    template: t.template,
+    config: t.config,
+    active: 1,
+    hook_secret: t.hook_secret,
+  };
+  await kv.put(`tenant:${t.token}`, JSON.stringify(row));
+  await kv.put(`tid:${id}`, t.token);
+  return id;
 }
 
-export async function getTenantByToken(db: D1Database, token: string): Promise<TenantRow | null> {
-  return (await db.prepare(`SELECT * FROM tenants WHERE token = ?`).bind(token).first<TenantRow>()) ?? null;
+export async function getTenantByToken(kv: KVNamespace, token: string): Promise<TenantRow | null> {
+  return parseRow<TenantRow>(await kv.get(`tenant:${token}`));
 }
 
-export async function getTenantById(db: D1Database, id: number): Promise<TenantRow | null> {
-  return (await db.prepare(`SELECT * FROM tenants WHERE id = ?`).bind(id).first<TenantRow>()) ?? null;
+export async function getTenantById(kv: KVNamespace, id: number): Promise<TenantRow | null> {
+  const token = await kv.get(`tid:${id}`);
+  return token ? getTenantByToken(kv, token) : null;
 }
 
-export async function listByOwner(db: D1Database, ownerId: number): Promise<TenantRow[]> {
-  const res = await db.prepare(`SELECT * FROM tenants WHERE owner_id = ? ORDER BY id`).bind(ownerId).all<TenantRow>();
-  return res.results ?? [];
+export async function listByOwner(kv: KVNamespace, ownerId: number): Promise<TenantRow[]> {
+  const keys = await listKeys(kv, "tenant:");
+  const rows: TenantRow[] = [];
+  for (const key of keys) {
+    const row = parseRow<TenantRow>(await kv.get(key));
+    if (row && row.owner_id === ownerId) rows.push(row);
+  }
+  rows.sort((a, b) => a.id - b.id);
+  return rows;
 }
 
-export async function deleteTenant(db: D1Database, id: number): Promise<void> {
-  await db.prepare(`DELETE FROM users WHERE tenant_id = ?`).bind(id).run();
-  await db.prepare(`DELETE FROM tenants WHERE id = ?`).bind(id).run();
+export async function deleteTenant(kv: KVNamespace, id: number): Promise<void> {
+  const tenant = await getTenantById(kv, id);
+  if (!tenant) return;
+  await kv.delete(`tenant:${tenant.token}`);
+  await kv.delete(`tid:${id}`);
+  const userKeys = await listKeys(kv, `u:${id}:`);
+  for (const key of userKeys) await kv.delete(key);
 }
 
-export async function setConfig(db: D1Database, id: number, config: unknown): Promise<void> {
-  await db.prepare(`UPDATE tenants SET config = ? WHERE id = ?`).bind(JSON.stringify(config), id).run();
+export async function setConfig(kv: KVNamespace, id: number, config: unknown): Promise<void> {
+  const tenant = await getTenantById(kv, id);
+  if (!tenant) return;
+  tenant.config = JSON.stringify(config);
+  await kv.put(`tenant:${tenant.token}`, JSON.stringify(tenant));
 }
 
 // ---------- users (collected for broadcast) ----------
 
-export async function addUser(db: D1Database, tenantId: number, userId: number): Promise<void> {
-  await db.prepare(`INSERT OR IGNORE INTO users (tenant_id, user_id) VALUES (?, ?)`).bind(tenantId, userId).run();
+export async function addUser(kv: KVNamespace, tenantId: number, userId: number): Promise<void> {
+  await kv.put(`u:${tenantId}:${userId}`, "1");
 }
 
-export async function listUsers(db: D1Database, tenantId: number): Promise<number[]> {
-  const res = await db.prepare(`SELECT user_id FROM users WHERE tenant_id = ?`).bind(tenantId).all<{ user_id: number }>();
-  return (res.results ?? []).map((r) => r.user_id);
+export async function listUsers(kv: KVNamespace, tenantId: number): Promise<number[]> {
+  const keys = await listKeys(kv, `u:${tenantId}:`);
+  return keys.map((k) => Number(k.split(":").pop())).filter((n) => Number.isFinite(n));
 }
 
 // ---------- pending factory conversations ----------
 
-export async function getPending(db: D1Database, userId: number): Promise<PendingRow | null> {
-  return (await db.prepare(`SELECT * FROM pending WHERE user_id = ?`).bind(userId).first<PendingRow>()) ?? null;
+export async function getPending(kv: KVNamespace, userId: number): Promise<PendingRow | null> {
+  return parseRow<PendingRow>(await kv.get(`pending:${userId}`));
 }
 
 export async function savePending(
-  db: D1Database,
+  kv: KVNamespace,
   userId: number,
   p: Partial<Omit<PendingRow, "user_id">>
 ): Promise<void> {
-  const cur = await getPending(db, userId);
+  const cur = await getPending(kv, userId);
   const next: PendingRow = {
     user_id: userId,
     step: p.step ?? cur?.step ?? "request",
@@ -127,22 +141,9 @@ export async function savePending(
     name: p.name !== undefined ? p.name : cur?.name ?? null,
     owner: p.owner !== undefined ? p.owner : cur?.owner ?? null,
   };
-  await db
-    .prepare(
-      `INSERT INTO pending (user_id, step, template, token, username, name, owner)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(user_id) DO UPDATE SET
-         step = excluded.step,
-         template = excluded.template,
-         token = excluded.token,
-         username = excluded.username,
-         name = excluded.name,
-         owner = excluded.owner`
-    )
-    .bind(next.user_id, next.step, next.template, next.token, next.username, next.name, next.owner)
-    .run();
+  await kv.put(`pending:${userId}`, JSON.stringify(next));
 }
 
-export async function clearPending(db: D1Database, userId: number): Promise<void> {
-  await db.prepare(`DELETE FROM pending WHERE user_id = ?`).bind(userId).run();
+export async function clearPending(kv: KVNamespace, userId: number): Promise<void> {
+  await kv.delete(`pending:${userId}`);
 }

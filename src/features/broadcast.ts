@@ -10,7 +10,7 @@ export function registerBroadcast(bot: Bot, t: TenantCtx): void {
     if (!ctx.from || !t.isOwner(ctx.from.id)) return;
     const text = typeof ctx.match === "string" ? ctx.match.trim() : "";
     if (!text) return ctx.reply("مثال: /broadcast سلام به همه 👋");
-    const users = await listUsers(t.env.DB, t.tenant.id);
+    const users = await listUsers(t.env.REGISTRY, t.tenant.id);
     let ok = 0;
     for (const uid of users) {
       try {

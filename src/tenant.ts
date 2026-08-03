@@ -22,7 +22,7 @@ export function buildTenantBot(env: Env, tenant: TenantRow): Bot {
   bot.command("start", async (ctx) => {
     const from = ctx.from;
     if (!from) return;
-    await addUser(env.DB, tenant.id, from.id);
+    await addUser(env.REGISTRY, tenant.id, from.id);
     if (t.feature("joiner")) {
       const pass = await joinerGate(ctx, t);
       if (!pass) return;

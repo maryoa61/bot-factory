@@ -53,7 +53,7 @@ export class TenantCtx {
 
   /** Persist config to D1, then refresh the panel message if it is open. */
   async save(bot: Bot): Promise<void> {
-    await setConfig(this.env.DB, this.tenant.id, this.config);
+    await setConfig(this.env.REGISTRY, this.tenant.id, this.config);
     await refreshPanel(bot, this);
   }
 
@@ -159,7 +159,7 @@ export function panelKb(t: TenantCtx): { inline_keyboard: { text: string; callba
 export async function sendPanel(bot: Bot, chatId: number, t: TenantCtx): Promise<void> {
   const msg = await bot.api.sendMessage(chatId, panelText(t), { reply_markup: panelKb(t) });
   t.config.panel = { chat: chatId, msg: msg.message_id };
-  await setConfig(t.env.DB, t.tenant.id, t.config);
+  await setConfig(t.env.REGISTRY, t.tenant.id, t.config);
 }
 
 export async function refreshPanel(bot: Bot, t: TenantCtx): Promise<void> {

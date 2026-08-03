@@ -31,7 +31,7 @@ export default {
     const m = url.pathname.match(/^\/wh\/([^/]+)$/);
     if (m) {
       const token = decodeURIComponent(m[1]);
-      const tenant = await getTenantByToken(env.DB, token);
+      const tenant = await getTenantByToken(env.REGISTRY, token);
       if (!tenant || !tenant.active) return new Response("not found", { status: 404 });
       const bot = buildTenantBot(env, tenant);
       return handle(bot, tenant.hook_secret, request);
