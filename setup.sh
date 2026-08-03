@@ -20,7 +20,12 @@ if [ ! -d ~/bot-factory ]; then
   git clone https://github.com/maryoa61/bot-factory.git
 fi
 cd ~/bot-factory
-npm install
+if [ -d /data/data/com.termux ]; then
+  echo "   (Termux شناسایی شد — نصب بدون workerd، چون اندروید پشتیبانی نمی‌شه)"
+  npm install --ignore-scripts
+else
+  npm install
+fi
 
 echo ""
 echo "[3/8] توکن API کلودفلر"
