@@ -43,6 +43,10 @@ OUT=$(npx wrangler d1 create bot-factory 2>&1 || true)
 echo "$OUT"
 DB_ID=$(echo "$OUT" | grep -oE '[0-9a-f]{32}' | head -1)
 if [ -z "$DB_ID" ]; then
+  echo "   (دیتابیس شاید قبلاً ساخته شده — از لیست می‌گیرم...)"
+  DB_ID=$(npx wrangler d1 list 2>&1 | grep -oE '[0-9a-f]{32}' | head -1)
+fi
+if [ -z "$DB_ID" ]; then
   read -r -p "   database_id رو از خروجی بالا کپی کن و بچسبون: " DB_ID
 fi
 sed -i "s/REPLACE_WITH_YOUR_D1_ID/$DB_ID/" wrangler.toml
