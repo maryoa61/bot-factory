@@ -36,6 +36,8 @@ fi
 cd ~/bot-factory
 if [ "$IS_TERMUX" = "1" ]; then
   npm install --ignore-scripts
+  echo "   (پاک‌کردن wrangler محلی v3 — چون روی اندروید کار نمی‌کنه و v2 رو بلاک می‌کنه)"
+  rm -rf node_modules/wrangler node_modules/workerd
 else
   npm install
 fi
