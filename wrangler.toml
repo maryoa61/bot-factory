@@ -1,0 +1,14 @@
+# Cloudflare Worker config — bot-factory
+# 1) npx wrangler d1 create bot-factory   →  put the returned id below
+# 2) npx wrangler secret put MAIN_BOT_TOKEN
+# 3) npx wrangler secret put WEBHOOK_SECRET   (random string, also used in setWebhook)
+# 4) npx wrangler deploy
+
+name = "bot-factory-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bot-factory"
+database_id = "REPLACE_WITH_YOUR_D1_ID"

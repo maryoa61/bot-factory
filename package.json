@@ -1,0 +1,23 @@
+{
+  "name": "bot-factory-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Telegram bot factory — Cloudflare Worker (grammY + D1)",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "selftest": "tsx src/selftest.ts",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "grammy": "^1.45.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "@types/node": "^26.1.2",
+    "tsx": "^4.23.5",
+    "typescript": "^5.9.3",
+    "wrangler": "^3.83.0"
+  }
+}
