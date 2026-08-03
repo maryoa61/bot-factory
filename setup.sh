@@ -49,7 +49,11 @@ fi
 if [ -z "$DB_ID" ]; then
   read -r -p "   database_id رو از خروجی بالا کپی کن و بچسبون: " DB_ID
 fi
-sed -i "s/REPLACE_WITH_YOUR_D1_ID/$DB_ID/" wrangler.toml
+if [[ ! "$DB_ID" =~ ^[0-9a-f]{32}$ ]]; then
+  echo "   ❌ آیدی معتبر نیست: $DB_ID"
+  exit 1
+fi
+sed -i "s|REPLACE_WITH_YOUR_D1_ID|$DB_ID|" wrangler.toml
 echo "   ✅ database_id ذخیره شد."
 
 echo ""
