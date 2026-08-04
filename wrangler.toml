@@ -1,5 +1,4 @@
 # Cloudflare Worker config — bot-factory
-# KV namespace already created (id below). No D1 needed.
 name = "bot-factory-worker"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
@@ -7,3 +6,8 @@ compatibility_date = "2025-01-01"
 [[kv_namespaces]]
 binding = "REGISTRY"
 id = "8c2ce05790014efc95f66c998f77f0cc"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kayamavy"
+database_id = "d75445e5-46b2-48ad-8e5c-8b58fc9acfe9"
