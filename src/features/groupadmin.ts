@@ -97,6 +97,41 @@ export function registerGroupAdmin(bot: Bot, t: TenantCtx): void {
     });
   }
 
+  // ---------- channel posting (groupadmin template) ----------
+  if (hasGroupAdmin) {
+    bot.command("setchannel", async (ctx) => {
+      if (!ctx.from || !t.isOwner(ctx.from.id)) return;
+      const raw = arg(ctx);
+      if (!raw) return ctx.reply("مثال: /setchannel @mychannel");
+      const target = /^\d+$/.test(raw) ? Number(raw) : raw;
+      try {
+        const chat = await bot.api.getChat(target);
+        t.config.channel = chat.id;
+        await t.save(bot);
+        await ctx.reply(
+          `✅ کانال «${chat.title ?? chat.username ?? chat.id}» تنظیم شد.\n` +
+            `حالا /post <متن> بفرست تا توش پست بذاری.`
+        );
+      } catch {
+        await ctx.reply("کانال پیدا نشد — مطمئن شو ربات ادمینشه و @ یا آیدی عددی بفرست.");
+      }
+    });
+
+    bot.command("post", async (ctx) => {
+      if (!ctx.from || !t.isOwner(ctx.from.id)) return;
+      const text = arg(ctx);
+      if (!text) return ctx.reply("مثال: /post سلام دنیا 🚀");
+      const ch = t.config.channel;
+      if (!ch) return ctx.reply("اول /setchannel @channel رو بزن.");
+      try {
+        await bot.api.sendMessage(ch, text);
+        await ctx.reply("✅ پست توی کانال ارسال شد.");
+      } catch {
+        await ctx.reply("ارسال نشد — ربات ادمین کاناله؟");
+      }
+    });
+  }
+
   // ---------- antilink + bad words (groupadmin / antispam templates) ----------
   if (hasGroupAdmin || hasAntispam) {
     bot.command("antilink", async (ctx) => {

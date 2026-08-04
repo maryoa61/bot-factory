@@ -1,13 +1,14 @@
 /** Factory bot: user describes the bot -> token (+owner id) -> custom bot delivered.
  *  Conversation state lives in D1 (`pending` table), so the worker is stateless. */
 
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, InlineKeyboard, Keyboard } from "grammy";
 import type { Context } from "grammy";
 
 import type { Env } from "./env";
 import * as db from "./registry";
 import type { PendingRow } from "./registry";
 import { TEMPLATES, baseConfigFor, matchRequest, templateById } from "./templates";
+import { registerAIInfo, channelRedirectText, channelJoinKeyboard, CHANNEL_URL } from "./features/aiinfo";
 
 const ALLOWED_UPDATES = [
   "message",
@@ -33,7 +34,7 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
         "الان از این ربات‌ها پشتیبانی می‌کنم:\n" +
         templatesText() +
         "\n\nبزن /newbot تا شروع کنیم.",
-      { reply_markup: mainPanel() }
+      { reply_markup: bottomKeyboard() }
     );
   });
 
@@ -58,6 +59,20 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
 
   bot.command("list", async (ctx) => {
     await ctx.reply("ربات‌هایی که می‌تونم بسازم:\n\n" + templatesText());
+  });
+
+  bot.command("help", async (ctx) => {
+    await ctx.reply(
+      "🤖 <b>منوی دستورات BotPRO:</b>\n\n" +
+        "/start — شروع و منوی اصلی\n" +
+        "/newbot — ساخت ربات جدید\n" +
+        "/mybots — ربات‌های من\n" +
+        "/delbot <id> — حذف ربات\n" +
+        "/api_free — لیست هوش مصنوعی‌های با API رایگان\n" +
+        "/api_news — آخرین اخبار هوش مصنوعی\n" +
+        "/cancel — لغو عملیات",
+      { parse_mode: "HTML" }
+    );
   });
 
   bot.command("mybots", async (ctx) => {
@@ -106,6 +121,18 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
       await ctx.reply("چه رباتی می‌خوای؟ 🔍\nدرخواستت رو یه جمله بنویس.");
     } else if (action === "mybots") {
       await mybotsReply(ctx, env, from.id);
+    } else if (action === "apifree") {
+      await ctx.reply(channelRedirectText("🆓 لیست هوش مصنوعی‌های با API رایگان"), {
+        parse_mode: "HTML",
+        link_preview_options: { is_disabled: true },
+        reply_markup: channelJoinKeyboard(),
+      });
+    } else if (action === "apinews") {
+      await ctx.reply(channelRedirectText("📰 آخرین اخبار هوش مصنوعی"), {
+        parse_mode: "HTML",
+        link_preview_options: { is_disabled: true },
+        reply_markup: channelJoinKeyboard(),
+      });
     } else if (action === "confirm") {
       await db.savePending(env.REGISTRY, from.id, { step: "token" });
       await ctx.reply("توکن رباتت رو بفرست:\nاز @BotFather → /newbot → اسم ربات → توکن رو اینجا کپی کن.");
@@ -118,11 +145,39 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
   bot.on("message:text", async (ctx) => {
     const from = ctx.from;
     if (!from || !ctx.message.text) return;
+
+    // Persistent keyboard buttons — handle before command/pending logic.
+    const kbText = ctx.message.text.trim();
+    if (kbText === "ساخت ربات" || kbText === "ربات‌های من" || kbText === "🆓 API رایگان" || kbText === "📰 اخبار AI") {
+      if (kbText === "ساخت ربات") {
+        await db.clearPending(env.REGISTRY, from.id);
+        await db.savePending(env.REGISTRY, from.id, { step: "request" });
+        await ctx.reply("چه رباتی می‌خوای؟ 🔍\nدرخواستت رو یه جمله بنویس.");
+      } else if (kbText === "ربات‌های من") {
+        await mybotsReply(ctx, env, from.id);
+      } else if (kbText === "🆓 API رایگان") {
+        await ctx.reply(channelRedirectText("🆓 لیست هوش مصنوعی‌های با API رایگان"), {
+          parse_mode: "HTML",
+          link_preview_options: { is_disabled: true },
+          reply_markup: channelJoinKeyboard(),
+        });
+      } else {
+        await ctx.reply(channelRedirectText("📰 آخرین اخبار هوش مصنوعی"), {
+          parse_mode: "HTML",
+          link_preview_options: { is_disabled: true },
+          reply_markup: channelJoinKeyboard(),
+        });
+      }
+      return;
+    }
+
     if (ctx.message.text.startsWith("/")) return; // handled by command handlers
     const pend = await db.getPending(env.REGISTRY, from.id);
     if (!pend) return;
     await handlePendingText(ctx, env, baseUrl, pend, from.id);
   });
+
+  registerAIInfo(bot);
 
   return bot;
 }
@@ -133,8 +188,23 @@ function templatesText(): string {
 
 function mainPanel() {
   return new InlineKeyboard()
-    .text("🤖 ربات جدید", "factory:newbot")
-    .text("📋 ربات‌های من", "factory:mybots");
+    .text("🤖 ساخت ربات", "factory:newbot")
+    .text("📋 ربات‌های من", "factory:mybots")
+    .row()
+    .text("🆓 API رایگان", "factory:apifree")
+    .text("📰 اخبار AI", "factory:apinews");
+}
+
+/** Persistent reply keyboard at the bottom of the chat. */
+function bottomKeyboard() {
+  return new Keyboard()
+    .text("ساخت ربات")
+    .text("ربات‌های من")
+    .row()
+    .text("🆓 API رایگان")
+    .text("📰 اخبار AI")
+    .resized()
+    .persistent();
 }
 
 async function mybotsReply(ctx: Context, env: Env, userId: number): Promise<void> {
