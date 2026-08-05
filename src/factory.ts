@@ -114,7 +114,11 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
     const from = ctx.from;
     if (!from) return;
     const action = ctx.match[1];
-    await ctx.answerCallbackQuery();
+    try {
+      await ctx.answerCallbackQuery();
+    } catch {
+      // Telegram may reject stale/invalid query ids — never let it kill the handler.
+    }
     if (action === "newbot") {
       await db.clearPending(env.REGISTRY, from.id);
       await db.savePending(env.REGISTRY, from.id, { step: "request" });
@@ -139,6 +143,25 @@ export function makeFactoryBot(env: Env, baseUrl: string): Bot {
     } else if (action === "change") {
       await db.savePending(env.REGISTRY, from.id, { step: "request", template: null });
       await ctx.reply("اوکی، دوباره بگو چه رباتی می‌خوای:");
+    } else if (action.startsWith("pick:")) {
+      const tpl = templateById(action.slice(5));
+      if (!tpl) return;
+      await db.savePending(env.REGISTRY, from.id, { step: "confirm", template: tpl.id });
+      await ctx.reply(
+        `فهمیدم! ✅ ربات «${tpl.name}»\n${tpl.desc}\n\n📌 ${tpl.setupHint}\n\nدرست بود؟`,
+        {
+          reply_markup: new InlineKeyboard()
+            .text("✅ درسته، بده توکن", "factory:confirm")
+            .text("↩️ عوض کن", "factory:change"),
+        }
+      );
+    } else if (action === "build") {
+      const pend = await db.getPending(env.REGISTRY, from.id);
+      if (!pend || pend.step !== "review") {
+        await ctx.reply("چیزی برای ساخت نیست. /newbot");
+        return;
+      }
+      await buildBot(ctx, env, baseUrl, pend);
     }
   });
 
@@ -234,7 +257,15 @@ async function handlePendingText(
   if (pend.step === "request") {
     const { template, score } = matchRequest(text);
     if (!template || score === 0) {
-      await ctx.reply("نتونستم بفهمم چه رباتی می‌خوای 🤔\nیه توضیح ساده‌تر بده یا /list بزن و اسم یه ربات رو بنویس.");
+      // No confident match → let the user pick manually from all templates.
+      const kb = new InlineKeyboard();
+      for (const t of TEMPLATES) kb.text(`🤖 ${t.name}`, `factory:pick:${t.id}`).row();
+      await ctx.reply(
+        "نتونستم دقیق بفهمم چه رباتی می‌خوای 🤔\n" +
+          "از لیست زیر انتخاب کن — یا درخواستت رو دقیق‌تر بنویس:\n\n" +
+          templatesText(),
+        { reply_markup: kb }
+      );
       return;
     }
     await db.savePending(env.REGISTRY, userId, { step: "confirm", template: template.id });
@@ -278,7 +309,7 @@ async function handlePendingText(
     }
     const tpl = templateById(pend.template ?? "");
     await db.savePending(env.REGISTRY, userId, {
-      step: tpl?.needsOwnerId ? "owner" : "done",
+      step: tpl?.needsOwnerId ? "owner" : "review",
       token,
       username,
       name,
@@ -289,8 +320,13 @@ async function handlePendingText(
       );
     } else {
       const fresh = await db.getPending(env.REGISTRY, userId);
-      if (fresh) await buildBot(ctx, env, baseUrl, fresh);
+      if (fresh) await showReview(ctx, env, baseUrl, fresh);
     }
+    return;
+  }
+
+  if (pend.step === "review") {
+    await ctx.reply("روی دکمه «🚀 بساز!» بزن تا ربات ساخته بشه. یا /cancel");
     return;
   }
 
@@ -305,10 +341,35 @@ async function handlePendingText(
       await ctx.reply("یه عدد معتبر بفرست، مثل: 5849459134");
       return;
     }
-    await db.savePending(env.REGISTRY, userId, { step: "done", owner: ownerId });
+    await db.savePending(env.REGISTRY, userId, { step: "review", owner: ownerId });
     const fresh = await db.getPending(env.REGISTRY, userId);
-    if (fresh) await buildBot(ctx, env, baseUrl, fresh);
+    if (fresh) await showReview(ctx, env, baseUrl, fresh);
   }
+}
+
+/** Show a final review card before actually building the bot. */
+async function showReview(
+  ctx: Context,
+  env: Env,
+  baseUrl: string,
+  pend: PendingRow
+): Promise<void> {
+  const tpl = templateById(pend.template ?? "");
+  const ownerLabel = pend.owner ?? ctx.from?.id ?? "—";
+  const username = pend.username ? `@${pend.username}` : "?";
+  await ctx.reply(
+    `📋 <b>خلاصه سفارش:</b>\n\n` +
+      `🤖 <b>نوع:</b> ${tpl?.name ?? "?"}\n` +
+      `👤 <b>یوزرنیم:</b> ${username}\n` +
+      `🛡️ <b>ادمین:</b> <code>${ownerLabel}</code>\n\n` +
+      `همه‌چی درسته؟ روی دکمه بزن تا ربات ساخته بشه.`,
+    {
+      parse_mode: "HTML",
+      reply_markup: new InlineKeyboard()
+        .text("🚀 بساز!", "factory:build")
+        .text("↩️ عوض کن", "factory:change"),
+    }
+  );
 }
 
 async function buildBot(ctx: Context, env: Env, baseUrl: string, pend: PendingRow): Promise<void> {
@@ -355,7 +416,13 @@ async function buildBot(ctx: Context, env: Env, baseUrl: string, pend: PendingRo
         `• نوع: ${tpl.name}\n` +
         `• یوزرنیم: @${pend.username}\n` +
         `• ادمین: ${ownerId}\n\n` +
-        `توی خودِ رباتت /panel بزن تا پنل مدیریتت باز بشه.\n${tpl.setupHint}`
+        `توی خودِ رباتت /panel بزن تا پنل مدیریتت باز بشه.\n${tpl.setupHint}`,
+      {
+        reply_markup: new InlineKeyboard().url(
+          "🚀 برو توی رباتت",
+          `https://t.me/${pend.username ?? ""}`
+        ),
+      }
     );
   } else {
     await ctx.reply(
