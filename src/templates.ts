@@ -11,7 +11,8 @@ export type FeatureId =
   | "poll"
   | "antispam"
   | "card"
-  | "forward";
+  | "forward"
+  | "content";
 
 export const FEATURE_IDS: FeatureId[] = [
   "autoreply",
@@ -24,6 +25,7 @@ export const FEATURE_IDS: FeatureId[] = [
   "antispam",
   "card",
   "forward",
+  "content",
 ];
 
 export interface Template {
@@ -51,7 +53,7 @@ export const TEMPLATES: Template[] = [
     name: "ربات پاسخگوی خودکار",
     desc: "به پیام‌های کاربران با کلمات کلیدی و متن‌های از پیش تعیین‌شده جواب می‌دهد.",
     keywords: ["پاسخ", "جواب", "اتورپلی", "اتو ریپلای", "اتو", "چت", "گفتگو", "مشاوره", "reply", "answer", "auto"],
-    features: { autoreply: true, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: false, card: false, forward: false },
+    features: { autoreply: true, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: false, card: false, forward: false, content: false },
     baseConfig: { defaultReply: "سلام! چطور می‌تونم کمکت کنم؟" },
     needsOwnerId: false,
     setupHint: "بعد از ساخت، /panel را بزن و از «پاسخ خودکار» کلمات کلیدی را اضافه کن.",
@@ -61,7 +63,7 @@ export const TEMPLATES: Template[] = [
     name: "ربات فروشگاه / درگاه",
     desc: "فروشگاه با محصولات، دکمه خرید و پرداخت با ستاره‌های تلگرام (Stars).",
     keywords: ["فروشگاه", "فروش", "خرید", "درگاه", "محصول", "پرداخت", "شارژ", "shop", "store", "buy", "payment", "price"],
-    features: { autoreply: false, shop: true, joiner: false, groupadmin: false, broadcast: true, welcome: false, poll: false, antispam: false, card: false, forward: false },
+    features: { autoreply: false, shop: true, joiner: false, groupadmin: false, broadcast: true, welcome: false, poll: false, antispam: false, card: false, forward: false, content: false },
     baseConfig: {},
     needsOwnerId: true,
     setupHint: "بعد از ساخت، /panel → فروشگاه: محصولات را اضافه کن. قیمت‌ها با ستاره‌ی تلگرام پرداخت می‌شوند.",
@@ -71,7 +73,7 @@ export const TEMPLATES: Template[] = [
     name: "ربات جوینر / ممبرگیر",
     desc: "کاربران را مجبور می‌کند اول عضو کانال/گروه تو شوند تا از ربات استفاده کنند.",
     keywords: ["جوین", "ممبر", "عضو", "عضویت", "کانال", "join", "member", "subscribe"],
-    features: { autoreply: false, shop: false, joiner: true, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: false, card: false, forward: false },
+    features: { autoreply: false, shop: false, joiner: true, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: false, card: false, forward: false, content: false },
     baseConfig: {},
     needsOwnerId: true,
     setupHint: "بعد از ساخت، /panel → گیت عضویت: آیدی کانال را بده و ربات را ادمین آن کانال کن.",
@@ -81,7 +83,7 @@ export const TEMPLATES: Template[] = [
     name: "ربات مدیریت گروه",
     desc: "کیک، بن، میوت، آنتی‌لینک و ضداسپم برای گروه خودت.",
     keywords: ["ادمین", "گروه", "کیک", "میت", "مدیریت", "mod", "admin", "kick", "ban"],
-    features: { autoreply: false, shop: false, joiner: false, groupadmin: true, broadcast: false, welcome: true, poll: false, antispam: true, card: false, forward: false },
+    features: { autoreply: false, shop: false, joiner: false, groupadmin: true, broadcast: false, welcome: true, poll: false, antispam: true, card: false, forward: false, content: false },
     baseConfig: {},
     needsOwnerId: true,
     setupHint: "ربات را ادمین گروهت کن؛ دستورات /kick /ban /mute /antilink را در گروه اجرا کن.",
@@ -91,7 +93,7 @@ export const TEMPLATES: Template[] = [
     name: "ربات اطلاع‌رسانی / برادکست",
     desc: "ارسال پیام همگانی به همه‌ی کسانی که ربات را استارت کرده‌اند.",
     keywords: ["اطلاع", "خبر", "برادکست", "همگانی", "اعلام", "کانال", "broadcast", "announce", "news"],
-    features: { autoreply: true, shop: false, joiner: false, groupadmin: false, broadcast: true, welcome: false, poll: false, antispam: false, card: false, forward: false },
+    features: { autoreply: true, shop: false, joiner: false, groupadmin: false, broadcast: true, welcome: false, poll: false, antispam: false, card: false, forward: false, content: false },
     baseConfig: { defaultReply: "برای اطلاع‌رسانی با ادمین در ارتباط باشید." },
     needsOwnerId: true,
     setupHint: "بعد از ساخت، /broadcast <متن> را بفرست تا به همه‌ی کاربران برسد.",
@@ -101,7 +103,7 @@ export const TEMPLATES: Template[] = [
     name: "ربات خوش‌آمدگویی",
     desc: "به اعضای جدید گروه پیام خوش‌آمد بده و گروه را حرفه‌ای نشان بده.",
     keywords: ["خوش امد", "خوشامد", "ویلکام", "welcome", "ورود"],
-    features: { autoreply: false, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: true, poll: false, antispam: false, card: false, forward: false },
+    features: { autoreply: false, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: true, poll: false, antispam: false, card: false, forward: false, content: false },
     baseConfig: {},
     needsOwnerId: true,
     setupHint: "بعد از ساخت، /setwelcome <متن> را بزن و ربات را ادمین گروهت کن.",
@@ -111,7 +113,7 @@ export const TEMPLATES: Template[] = [
     name: "ربات نظرسنجی",
     desc: "ساخت نظرسنجی با دستور ساده و مشاهده نتایج.",
     keywords: ["نظرسنجی", "رای", "نظر", "poll", "vote", "survey"],
-    features: { autoreply: false, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: true, antispam: false, card: false, forward: false },
+    features: { autoreply: false, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: true, antispam: false, card: false, forward: false, content: false },
     baseConfig: {},
     needsOwnerId: true,
     setupHint: "بعد از ساخت: /poll سوال|گزینه۱|گزینه۲|...",
@@ -121,7 +123,7 @@ export const TEMPLATES: Template[] = [
     name: "ربات ضداسپم",
     desc: "حذف خودکار پیام‌های حاوی لینک و کلمات اسپم در گروه.",
     keywords: ["اسپم", "ضد اسپم", "لینک", "هرز", "spam", "antispam"],
-    features: { autoreply: false, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: true, card: false, forward: false },
+    features: { autoreply: false, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: true, card: false, forward: false, content: false },
     baseConfig: {},
     needsOwnerId: true,
     setupHint: "بعد از ساخت ربات را ادمین گروه کن؛ /antilink on را بزن.",
@@ -131,7 +133,7 @@ export const TEMPLATES: Template[] = [
     name: "ربات کارت ویزیت / معرفی",
     desc: "به هر کسی که استارت کند، معرفی‌نامه‌ی تو را نشان می‌دهد.",
     keywords: ["کارت", "ویزیت", "معرفی", "رزومه", "بیو", "card", "bio", "introduce"],
-    features: { autoreply: true, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: false, card: true, forward: false },
+    features: { autoreply: true, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: false, card: true, forward: false, content: false },
     baseConfig: { defaultReply: "سلام! 👋\nمن ربات معرفی هستم.\nبرای مشاهده‌ی اطلاعات، /info را بزن." },
     needsOwnerId: false,
     setupHint: "بعد از ساخت /setinfo <متن معرفی> را بزن.",
@@ -141,10 +143,20 @@ export const TEMPLATES: Template[] = [
     name: "ربات فوروارد خودکار",
     desc: "پیام‌های کانال/گروه مبدأ را خودکار به مقصد فوروارد می‌کند.",
     keywords: ["فوروارد", "انتقال", "کپی", "forward", "copy", "relay"],
-    features: { autoreply: false, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: false, card: false, forward: true },
+    features: { autoreply: false, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: false, card: false, forward: true, content: false },
     baseConfig: {},
     needsOwnerId: true,
     setupHint: "بعد از ساخت /setforward @مبدا|@مقصد را بزن (ربات در هر دو ادمین باشد).",
+  },
+  {
+    id: "content",
+    name: "ربات جمع‌آوری محتوا",
+    desc: "اخبار AI و لیست APIهای رایگان رو جمع می‌کند (RSS + publicapis.org — کاملاً رایگان).",
+    keywords: ["جمع", "محتوا", "خبر", "اخبار", "rss", "feed", "content", "collector", "news"],
+    features: { autoreply: false, shop: false, joiner: false, groupadmin: false, broadcast: false, welcome: false, poll: false, antispam: false, card: false, forward: false, content: true },
+    baseConfig: {},
+    needsOwnerId: true,
+    setupHint: "دستورات /news (اخبار AI) و /apis (APIهای رایگان) را بزن.",
   },
 ];
 

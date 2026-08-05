@@ -93,6 +93,16 @@ export async function listByOwner(kv: KVNamespace, ownerId: number): Promise<Ten
   return rows;
 }
 
+export async function listAllTenants(kv: KVNamespace): Promise<TenantRow[]> {
+  const keys = await listKeys(kv, "tenant:");
+  const rows: TenantRow[] = [];
+  for (const key of keys) {
+    const row = parseRow<TenantRow>(await kv.get(key));
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
 export async function deleteTenant(kv: KVNamespace, id: number): Promise<void> {
   const tenant = await getTenantById(kv, id);
   if (!tenant) return;

@@ -14,18 +14,24 @@ import { registerBroadcast } from "./features/broadcast";
 import { registerPoll } from "./features/poll";
 import { cardStartText, registerCard } from "./features/card";
 import { registerForward } from "./features/forward";
+import { registerContentBot } from "./features/contentbot";
 
 export function buildTenantBot(env: Env, tenant: TenantRow): Bot {
   const bot = new Bot(tenant.token);
   const t = new TenantCtx(env, tenant);
 
-  bot.command("start", async (ctx) => {
+  bot.command("start", async (ctx, next) => {
     const from = ctx.from;
     if (!from) return;
     await addUser(env.REGISTRY, tenant.id, from.id);
     if (t.feature("joiner")) {
       const pass = await joinerGate(ctx, t);
       if (!pass) return;
+    }
+    // Content bot has its own rich /start — let it handle this update.
+    if (t.feature("content")) {
+      await next();
+      return;
     }
     const cardText = cardStartText(t);
     const text =
@@ -67,6 +73,7 @@ export function buildTenantBot(env: Env, tenant: TenantRow): Bot {
   if (t.feature("poll")) registerPoll(bot, t);
   if (t.feature("card")) registerCard(bot, t);
   if (t.feature("forward")) registerForward(bot, t);
+  if (t.feature("content")) registerContentBot(bot);
 
   return bot;
 }

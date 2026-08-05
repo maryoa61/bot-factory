@@ -11,3 +11,7 @@ id = "8c2ce05790014efc95f66c998f77f0cc"
 binding = "DB"
 database_name = "kayamavy"
 database_id = "d75445e5-46b2-48ad-8e5c-8b58fc9acfe9"
+
+# Auto-post free APIs to the channel twice a day (12:30 & 20:30 Tehran time = 09:00 & 17:00 UTC)
+[triggers]
+crons = ["0 9 * * *", "0 17 * * *"]

@@ -81,6 +81,7 @@ export function panelText(t: TenantCtx): string {
     antispam: "ضداسپم",
     card: "کارت ویزیت",
     forward: "فوروارد",
+    content: "جمع‌آوری محتوا",
   };
   const active = FEATURE_IDS_ENABLED(t);
   if (active.length) {
@@ -126,13 +127,14 @@ const FEATURE_HELP: Record<string, string> = {
   autoreply: "/addreply کلید|جواب\n/delreply کلید\n/delreply * (حذف همه)",
   shop: "/addproduct نام|قیمت(ستاره)\n/delproduct شماره\n/shop",
   joiner: "/setchannel @کانال",
-  groupadmin: "/kick (ریپلای)  /ban (ریپلای)  /mute (ریپلای)\n/antilink on|off  /setwelcome متن",
+  groupadmin: "/kick (ریپلای)  /ban (ریپلای)  /mute (ریپلای)\n/antilink on|off  /setwelcome متن\n/setchannel @کانال  /post متن",
   broadcast: "/broadcast متن",
   welcome: "/setwelcome متن",
   poll: "/poll سوال|گزینه۱|گزینه۲|...",
   antispam: "/antilink on|off  /addword کلمه",
   card: "/setinfo متن معرفی",
   forward: "/setforward @مبدا|@مقصد  /fwd off",
+  content: "/news  (اخبار AI)   /apis  (APIهای رایگان)",
 };
 
 export function panelKb(t: TenantCtx): { inline_keyboard: { text: string; callback_data: string }[][] } {
@@ -149,6 +151,7 @@ export function panelKb(t: TenantCtx): { inline_keyboard: { text: string; callba
       antispam: "🚫 ضداسپم",
       card: "🪪 کارت ویزیت",
       forward: "🔁 فوروارد",
+      content: "📰 جمع‌آوری محتوا",
     };
     kb.push([{ text: names[id] ?? id, callback_data: `pn:help:${id}` }]);
   }
